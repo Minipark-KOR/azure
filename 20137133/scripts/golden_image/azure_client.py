@@ -83,7 +83,13 @@ def create_spot_vm(vm_name, version, public_ip_dns=None):
     return False, err or out
 
 
-def delete_vm(vm_name):
+def list_vms_by_prefix(prefix: str = "llm-qwen") -> list[dict]:
+    """List all VMs in the resource group with name starting with prefix."""
+    data = az_json(["vm", "list", "-g", RG, "--query", f"[?starts_with(name,'{prefix}')].{{name:name,publicIps:publicIps,powerState:powerState}}"])
+    return data if isinstance(data, list) else []
+
+
+def delete_vm(vm_name: str) -> bool:
     code, _, _ = _run_az(["vm", "delete", "--resource-group", RG, "--name", vm_name, "--yes", "--force-deletion"], timeout=60)
     return code == 0
 

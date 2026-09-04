@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Status: production
 # Path: systemd:golden-image-deploy-check.timer
-"""15분 주기 — 배포 동기화 + 헬스체크 + 타임아웃(10분) + 큐 재시도."""
+"""15분 주기 — 배포 동기화 + 헬스체크 + 타임아웃(10분) + 잔존 VM 강제 종료."""
 
 import os
 import time
@@ -10,6 +10,7 @@ import urllib.error
 from datetime import datetime, timezone, timedelta
 
 from golden_image import models
+from golden_image import azure_client
 
 TIMEOUT_MIN = 10
 HEALTH_PATH = "/health"
@@ -31,9 +32,8 @@ def _health_check(ip: str, api_key: str, timeout: int = 5) -> tuple[bool, int]:
         return False, latency
 
 
-def main() -> None:
+def _load_api_key() -> str:
     api_key = os.environ.get("LLAMA_API_KEY", "")
-    # load from secrets.env fallback
     if not api_key:
         try:
             with open(os.path.expanduser("~/.config/devforge/secrets.env")) as f:
@@ -42,7 +42,11 @@ def main() -> None:
                         api_key = line.strip().split("=", 1)[1].strip().strip('"').strip("'")
         except Exception:
             pass
+    return api_key
 
+
+def _check_deployments(api_key: str) -> None:
+    """기존 배포 추적/헬스체크/타임아웃 로직."""
     pendings = models.list_pending_deployments()
     now = datetime.now(timezone.utc)
     for dep in pendings:
@@ -50,7 +54,6 @@ def main() -> None:
         vm_name = dep["vm_name"]
         public_ip = dep.get("public_ip")
         created = dep.get("created_at")
-        # timeout check: 10분 초과 시 failed + 큐 적재(next cycle 재시도)
         try:
             if isinstance(created, str):
                 created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
@@ -64,11 +67,9 @@ def main() -> None:
             pass
 
         if not public_ip:
-            # IP 미할당 — 다음 주기에 재시도 (best-effort)
             print(f"[pending] {vm_name} no IP yet, retry next cycle")
             continue
 
-        # 3회 헬스체크
         success = False
         latency = None
         for _ in range(3):
@@ -84,9 +85,37 @@ def main() -> None:
             models.update_deployment(dep_id, status="success")
             print(f"[healthy] {vm_name} {latency}ms")
         else:
-            # 3회 실패 — failed로 마킹하되 삭제하지 않고 큐 유지(next cycle 재시도)
-            # 실제 VM은 Spot eviction 시 Azure가 Delete하므로 DB만 상태 갱신
             print(f"[unhealthy] {vm_name} 3x fail — will retry next cycle")
+
+
+def _check_orphan_vms() -> None:
+    """Azure에 llm-qwen* VM이 살아있으면 강제 종료 — 안전장치."""
+    vms = azure_client.list_vms_by_prefix("llm-qwen")
+    if not vms:
+        return
+
+    for vm in vms:
+        vm_name = vm.get("name", "unknown")
+        ip = vm.get("publicIps", "N/A")
+        power = vm.get("powerState", "unknown")
+        print(f"[orphan] detected live VM: {vm_name} (ip={ip}, power={power}) — forcing delete")
+        ok = azure_client.delete_vm(vm_name)
+        if ok:
+            print(f"[orphan] {vm_name} deleted successfully")
+            models.log_deployment(
+                vm_name=vm_name,
+                status="evicted",
+                public_ip=ip if ip != "N/A" else None,
+                error="orphan VM force-deleted by 15min safety timer",
+            )
+        else:
+            print(f"[orphan] {vm_name} delete FAILED — will retry next cycle")
+
+
+def main() -> None:
+    api_key = _load_api_key()
+    _check_deployments(api_key)
+    _check_orphan_vms()
 
 
 if __name__ == "__main__":
