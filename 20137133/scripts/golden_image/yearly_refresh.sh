@@ -8,10 +8,10 @@ RG="rg-devforge-prod-cin"
 LOCATION="centralindia"
 BUILDER="temp-golden-builder"
 IMAGE="axis-golden-image"
-GALLERY="NeuronGallery"
+GALLERY="gallery_devforge_prod_cin"
 IMAGE_DEF="llm-qwen-27b-golden"
 VM_SIZE="Standard_FX2ms_v2"
-BASE_IMAGE="UbuntuMinimal2604"
+BASE_IMAGE="Ubuntu2204"
 LLAMA_VER="${LLAMA_VER:-b4432}"
 VERSION="${VERSION:-$(date +%Y.%m.0)}"
 DRY_RUN=false
@@ -24,7 +24,7 @@ echo "Version: $VERSION  LLAMA_VER: $LLAMA_VER  DRY_RUN: $DRY_RUN"
 if ! $DRY_RUN; then read -p "Continue? (y/N) " ans; [[ "$ans" == "y" ]] || exit 0; fi
 
 echo "[1/7] Builder VM 생성"
-run "az vm create --resource-group $RG --name $BUILDER --location $LOCATION --image $BASE_IMAGE --size $VM_SIZE --admin-username azureuser --ssh-key-values ~/.ssh/id_rsa.pub --os-disk-size-gb 64 --os-disk-type StandardSSD_LRS --os-disk-delete-option Delete"
+run "az vm create --resource-group $RG --name $BUILDER --location $LOCATION --image $BASE_IMAGE --size $VM_SIZE --admin-username azureuser --ssh-key-values ~/.ssh/id_rsa.pub --os-disk-size-gb 64 --storage-sku StandardSSD_LRS --os-disk-delete-option Delete --zone 2"
 
 if ! $DRY_RUN; then
   IP=$(az vm show -d -g "$RG" -n "$BUILDER" --query publicIps -o tsv)

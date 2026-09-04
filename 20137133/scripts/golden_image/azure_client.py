@@ -9,7 +9,7 @@ import time
 from typing import Optional
 
 RG = "rg-devforge-prod-cin"
-GALLERY = "NeuronGallery"
+GALLERY = "gallery_devforge_prod_cin"
 IMAGE_DEF = "llm-qwen-27b-golden"
 LOCATION = "centralindia"
 VM_SIZE = "Standard_FX2ms_v2"
