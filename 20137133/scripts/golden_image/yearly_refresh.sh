@@ -117,7 +117,7 @@ run "az vm deallocate --resource-group $RG --name $BUILDER"
 run "az vm generalize --resource-group $RG --name $BUILDER"
 
 echo "[5/7] Managed Image 캡처"
-run "az image create --resource-group $RG --name $IMAGE --source $BUILDER --os-type Linux"
+run "az image create --resource-group $RG --name $IMAGE --source $BUILDER --os-type Linux --hyper-v-generation V2"
 
 echo "[6/7] Gallery 등록"
 SUB=$(az account show --query id -o tsv 2>/dev/null || echo "SUB_PLACEHOLDER")
