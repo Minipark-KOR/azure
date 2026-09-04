@@ -24,7 +24,7 @@ echo "Version: $VERSION  LLAMA_VER: $LLAMA_VER  DRY_RUN: $DRY_RUN"
 if ! $DRY_RUN; then read -p "Continue? (y/N) " ans; [[ "$ans" == "y" ]] || exit 0; fi
 
 echo "[1/7] Builder VM 생성"
-run "az vm create --resource-group $RG --name $BUILDER --location $LOCATION --image $BASE_IMAGE --size $VM_SIZE --admin-username azureuser --ssh-key-values ~/.ssh/id_rsa.pub --os-disk-size-gb 64 --storage-sku StandardSSD_LRS --os-disk-delete-option Delete --zone 2"
+run "az vm create --resource-group $RG --name $BUILDER --location $LOCATION --image $BASE_IMAGE --size $VM_SIZE --admin-username azureuser --ssh-key-values ~/.ssh/id_rsa.pub --os-disk-size-gb 64 --storage-sku StandardSSD_LRS --os-disk-delete-option Delete --zone 2 --security-type Standard"
 
 if ! $DRY_RUN; then
   IP=$(az vm show -d -g "$RG" -n "$BUILDER" --query publicIps -o tsv)
