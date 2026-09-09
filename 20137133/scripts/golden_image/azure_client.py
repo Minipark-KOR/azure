@@ -84,8 +84,14 @@ def create_spot_vm(vm_name, version, public_ip_dns=None):
 
 
 def list_vms_by_prefix(prefix: str = "llm-qwen") -> list[dict]:
-    """List all VMs in the resource group with name starting with prefix."""
-    data = az_json(["vm", "list", "-g", RG, "--query", f"[?starts_with(name,'{prefix}')].{{name:name,publicIps:publicIps,powerState:powerState}}"])
+    """List all VMs in the resource group with name starting with prefix.
+
+    `--show-details` is required for `az vm list` to populate `publicIps` and
+    `powerState` (both are derived fields absent from the default listing).
+    Without it the orphan-vm safety timer would lose IP/power info, so keep parity
+    with `claude-mode` (see ~/.bashrc.d/claude-mode:28).
+    """
+    data = az_json(["vm", "list", "-g", RG, "--show-details", "--query", f"[?starts_with(name,'{prefix}')].{{name:name,publicIps:publicIps,powerState:powerState}}"])
     return data if isinstance(data, list) else []
 
 
