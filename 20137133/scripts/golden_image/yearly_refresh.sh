@@ -59,7 +59,7 @@ echo "[provision] start \$(date -u +%FT%TZ)"
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get install -y wget curl git unattended-upgrades ca-certificates
+sudo apt-get install -y wget curl git unattended-upgrades ca-certificates libgomp1
 sudo dpkg-reconfigure -f noninteractive unattended-upgrades
 sudo tee /etc/apt/apt.conf.d/20auto-upgrades >/dev/null <<'EOF'
 APT::Periodic::Update-Package-Lists "1";
